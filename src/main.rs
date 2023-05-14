@@ -9,8 +9,8 @@ mod image;
 
 fn main() -> Result<(), color_eyre::Report> {
     color_eyre::install()?;
-    let base_dir = Path::new("/home/jsm/jmenzies-exifer-raw");
-    // let base_dir = Path::new("/home/jsm/photos");
+    // let base_dir = Path::new("/home/jsm/jmenzies-exifer-raw");
+    let base_dir = Path::new("/home/jsm/photos");
 
     let files = files::load_files_in_dir(base_dir)?;
 

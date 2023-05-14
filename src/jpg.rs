@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, NaiveDate, Utc};
 use color_eyre::eyre::eyre;
 use color_eyre::Report;
+use exif::Exif;
 use regex::{Captures, Match, Regex};
 
 use crate::image;
@@ -23,10 +24,11 @@ pub fn process(files: &mut Vec<PathBuf>) -> Result<(), Report> {
 
         let name = String::from(&filename[5..]);
 
-        let date = date_from_filename(&name);
+        let name_date = date_from_filename(&name);
+        let exif_date = datetime_from_exif(file);
 
-        if let Err(err) = date {
-            println!("{}", err);
+        if exif_date.is_err() && name_date.is_ok() {
+            // println!("{}: {}", filename, name_date.unwrap());
             failed += 1;
         }
     }
@@ -36,7 +38,24 @@ pub fn process(files: &mut Vec<PathBuf>) -> Result<(), Report> {
 }
 
 fn datetime_from_exif(photo: &Path) -> Result<DateTime<Utc>, Report> {
-    todo!()
+    if let Ok(file) = fs::File::open(photo) {
+        let mut bufreader = std::io::BufReader::new(&file);
+        let exifreader = exif::Reader::new();
+        let exif = exifreader.read_from_container(&mut bufreader)?;
+        let datetime_tag = exif
+            .get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
+            .ok_or_else(|| eyre!("exif DateTimeOriginal tag is missing"))?;
+        let datetime_tag = exif
+            .get_field(exif::Tag::DateTimeDigitized, exif::In::PRIMARY)
+            .ok_or_else(|| eyre!("exif DateTimeOriginal tag is missing"))?;
+        println!("{}: {}", photo.display(), datetime_tag.display_value().with_unit(&exif));
+        // for f in exif.fields() {
+        //     println!("{} {} {}",
+        //              f.tag, f.ifd_num, f.display_value().with_unit(&exif));
+        // }
+        return Ok(Utc::now())
+    }
+    Err(eyre!("failed to open file: {}", photo.display()))
 }
 
 fn date_from_filename(name: &String) -> Result<NaiveDate, Report> {
@@ -54,7 +73,6 @@ fn date_from_filename(name: &String) -> Result<NaiveDate, Report> {
 
         return if let (Ok(y), Ok(m), Ok(d)) = (year, month, day) {
             let date = NaiveDate::from_ymd_opt(y, m as u32, d as u32).unwrap();
-            println!("{}: {}", name, date);
             Ok(date)
         } else {
             Err(eyre!("ERROR Date format Y/M/D: {:?}", name))
