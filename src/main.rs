@@ -5,6 +5,7 @@ use color_eyre::eyre::bail;
 
 mod jpg;
 mod files;
+mod image;
 
 fn main() -> Result<(), color_eyre::Report> {
     color_eyre::install()?;
@@ -12,11 +13,12 @@ fn main() -> Result<(), color_eyre::Report> {
     // let base_dir = Path::new("/home/jsm/photos");
 
     let files = files::load_files_in_dir(base_dir)?;
+
     println!("{} files found", files.len());
 
     let mut lookup: HashMap<String, Vec<PathBuf>> = HashMap::new();
 
-    for file in &files {
+    for file in files {
         let extension = match file.extension() {
             Some(ext) => {
                 let extension = ext.to_str().unwrap().to_string().to_lowercase();
@@ -29,17 +31,20 @@ fn main() -> Result<(), color_eyre::Report> {
             None => bail!("File: {} has no extension", file.display()),
         };
         match lookup.get_mut(&extension) {
-            Some(paths) => paths.push(file.clone()),
+            Some(paths) => paths.push(file),
             None => {
-                lookup.insert(extension, vec![file.clone()]);
+                lookup.insert(extension, vec![file]);
             }
         }
     }
-    //
-    // for (key, value) in &lookup {
-    //     println!("{}: {}", key, value.len());
-    // }
-    //
+
+    for (key, value) in &lookup {
+        println!("{}: {}", key, value.len());
+    }
+
+    jpg::process(lookup.get_mut("jpg").unwrap())?;
+
+    // println!("{} files found", files.len());
 
     Ok(())
 }
